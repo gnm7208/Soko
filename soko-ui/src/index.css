@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Soko design tokens — "Nairobi market": clay, jacaranda indigo, marigold gold. */
+@layer base {
+  :root {
+    --background: 38 58% 96%;
+    --foreground: 28 26% 11%;
+    --card: 40 100% 99%;
+    --card-foreground: 28 26% 11%;
+    --popover: 40 100% 99%;
+    --popover-foreground: 28 26% 11%;
+    --primary: 9 62% 47%;
+    --primary-foreground: 38 58% 97%;
+    --secondary: 37 42% 89%;
+    --secondary-foreground: 28 26% 11%;
+    --muted: 36 42% 91%;
+    --muted-foreground: 30 11% 38%;
+    --accent: 250 33% 46%;
+    --accent-foreground: 38 58% 97%;
+    --success: 137 35% 38%;
+    --destructive: 354 63% 49%;
+    --destructive-foreground: 38 58% 97%;
+    --border: 37 35% 84%;
+    --input: 37 35% 84%;
+    --ring: 9 62% 47%;
+    --radius: 0.625rem;
+
+    --gold: 39 67% 55%;
+    --shadow-ink: 28 26% 11%;
+  }
+
+  * { @apply border-border; }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-heading {
+    @apply font-serif;
+    font-optical-sizing: auto;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer utilities {
+  .font-body { @apply font-sans; }
+  .font-heading { @apply font-serif; font-optical-sizing: auto; letter-spacing: -0.01em; }
+
+  .soko-photo { filter: saturate(1.08) contrast(1.03); }
+
+  .soko-map-grid {
+    background-image:
+      linear-gradient(rgba(228, 217, 199, 0.55) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(228, 217, 199, 0.55) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
