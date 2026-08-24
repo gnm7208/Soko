@@ -49,3 +49,7 @@ htmlcov/
 
 # Uploaded files (local dev storage)
 uploads/
+
+# Excluded from initial push — gh OAuth token lacks 'workflow' scope.
+# Add back with: git add -f .github/workflows/ci.yml
+.github/workflows/ci.yml
