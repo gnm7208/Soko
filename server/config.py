@@ -16,8 +16,11 @@ class Config:
     JWT_TOKEN_LOCATION = ["cookies", "headers"]
     JWT_HEADER_NAME = "Authorization"
     JWT_HEADER_TYPE = "Bearer"
-    JWT_COOKIE_SECURE = False
-    JWT_COOKIE_SAMESITE = "Lax"
+    # Cross-origin deploys (frontend and backend on different domains) need
+    # Secure + SameSite=None for the auth cookie to survive at all; local dev
+    # (same-origin via the Vite proxy) keeps the safer Lax/non-Secure defaults.
+    JWT_COOKIE_SECURE = os.getenv("JWT_COOKIE_SECURE", "false").lower() == "true"
+    JWT_COOKIE_SAMESITE = os.getenv("JWT_COOKIE_SAMESITE", "Lax")
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
     ENV = os.getenv("ENV", "development")
     PORT = int(os.getenv("PORT", 5000))

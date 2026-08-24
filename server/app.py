@@ -1,6 +1,7 @@
 import os
 
 from flask import Flask, jsonify, send_from_directory
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from server.config import config_by_name
 from server.extensions import db, init_extensions
@@ -10,6 +11,12 @@ def create_app():
     app = Flask(__name__)
     env = os.getenv("ENV", "development")
     app.config.from_object(config_by_name[env])
+
+    if env == "production":
+        # Render (and most PaaS) terminate TLS at the edge and forward plain HTTP
+        # internally with X-Forwarded-Proto: https. Without ProxyFix, Talisman's
+        # force_https never sees a secure request and redirect-loops forever.
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
     init_extensions(app)
 
