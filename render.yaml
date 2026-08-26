@@ -19,10 +19,26 @@ services:
         value: "true"
       - key: JWT_COOKIE_SAMESITE
         value: "None"
-      # Set to the deployed frontend origin after the Vercel deploy exists —
-      # comma-separated, no trailing slash (e.g. https://soko-app.vercel.app).
+      # document.cookie can never read another origin's cookie (a hard browser
+      # boundary), so the double-submit CSRF cookie is unreadable by frontend JS
+      # once the frontend and backend are split across origins — every mutation
+      # 401'd with "Missing CSRF token" until this was set. The client already
+      # authenticates with a Bearer token (unforgeable cross-site), so this is
+      # both necessary and safe for a cross-origin deploy like this one.
+      - key: JWT_COOKIE_CSRF_PROTECT
+        value: "false"
+      # Render's default runtime resolved to Python 3.14, which has no
+      # prebuilt wheel for pydantic-core (build fails: read-only cargo cache).
+      # Pin to the version this app is actually tested against.
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      # Comma-separated, no trailing slash. Includes the actual deployed
+      # Vercel production + preview URLs for this project, plus local dev.
       - key: CORS_ORIGINS
-        value: "http://localhost:5173"
+        value: "https://soko-app-eight.vercel.app,https://soko-2skd0zxkj-gnm7208s-projects.vercel.app,http://localhost:5173"
+      # Free-tier web services have no persistent disk — anything written here
+      # (avatar/shop image uploads) is lost on the next deploy or restart. Fine
+      # for a demo; swap for S3/Cloudinary before this matters for real.
       - key: STORAGE_PATH
         value: "./uploads"
 
