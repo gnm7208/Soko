@@ -21,6 +21,13 @@ class Config:
     # (same-origin via the Vite proxy) keeps the safer Lax/non-Secure defaults.
     JWT_COOKIE_SECURE = os.getenv("JWT_COOKIE_SECURE", "false").lower() == "true"
     JWT_COOKIE_SAMESITE = os.getenv("JWT_COOKIE_SAMESITE", "Lax")
+    # The double-submit CSRF cookie is unreadable by frontend JS once the
+    # frontend and backend are on different origins (document.cookie can never
+    # see another origin's cookie — that's a hard browser boundary, not a config
+    # issue). The client already sends every mutating request with a Bearer
+    # token, which CSRF can't forge, so cookie-CSRF protection is both broken
+    # and redundant cross-origin. Same-origin dev keeps it enabled by default.
+    JWT_COOKIE_CSRF_PROTECT = os.getenv("JWT_COOKIE_CSRF_PROTECT", "true").lower() == "true"
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
     ENV = os.getenv("ENV", "development")
     PORT = int(os.getenv("PORT", 5000))
