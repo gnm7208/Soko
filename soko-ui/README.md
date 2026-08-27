@@ -14,6 +14,11 @@ For local development, leave `VITE_API_URL` unset: Vite proxies `/api` to Flask 
 Set `VITE_API_URL` to the deployed `/api/v1` origin when the frontend and API are hosted separately.
 The frontend sends `credentials: include` and the Flask CSRF cookie token on unsafe requests.
 
+## Live
+
+- **App:** [soko-app-eight.vercel.app](https://soko-app-eight.vercel.app)
+- **API:** [soko-api-24sn.onrender.com](https://soko-api-24sn.onrender.com)
+
 ## Run it
 
 ```bash

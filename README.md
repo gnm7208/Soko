@@ -2,6 +2,13 @@
 
 A marketplace platform connecting retailers with customers — listings, search, maps, delivery, chat, ratings, and payments.
 
+## Live
+
+- **App:** [soko-app-eight.vercel.app](https://soko-app-eight.vercel.app)
+- **API:** [soko-api-24sn.onrender.com](https://soko-api-24sn.onrender.com)
+
+Both are hosted on free tiers — the API sleeps after ~15 minutes idle, so the first request after a while can take 30-50s to wake up.
+
 ## Stack
 
 - **Backend:** Flask 3.x + SQLAlchemy 2.x + Alembic + PostgreSQL
