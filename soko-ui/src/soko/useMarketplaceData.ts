@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { api } from "@/services/api";
+import { api, COLD_START_TIMEOUT_MS } from "@/services/api";
 
 import { categories as fallbackCategories, listings as fallbackListings, orders as fallbackOrders, shops as fallbackShops, type Category, type Listing, type NotificationItem, type Order, type Shop } from "./data";
 import { flattenCategories, normalizeCategoryOptions, normalizeListing, normalizeNotification, normalizeOrder, normalizeShop } from "./normalizers";
@@ -27,9 +27,14 @@ export function useMarketplaceData(searchQuery = "", isAuthenticated = false): M
 
   useEffect(() => {
     let active = true;
+    // Only the very first load gets the generous cold-start budget — a free-tier
+    // backend asleep on first visit shouldn't silently look like "no data" and
+    // fall back to placeholders. Later refreshes (post-checkout, shop-settings
+    // save, etc.) hit an already-warm backend, so they keep the snappier default.
+    const timeoutMs = refreshToken === 0 ? COLD_START_TIMEOUT_MS : undefined;
     const ordersRequest = isAuthenticated ? api.getOrders({ page: 1, per_page: 100 }) : Promise.reject(new Error("Authentication required"));
     const notificationsRequest = isAuthenticated ? api.getNotifications({ page: 1, per_page: 50 }) : Promise.reject(new Error("Authentication required"));
-    Promise.allSettled([api.getShops({ page: 1, per_page: 100 }), api.getCategories(), ordersRequest, notificationsRequest]).then(([shopsResult, categoriesResult, ordersResult, notificationsResult]) => {
+    Promise.allSettled([api.getShops({ page: 1, per_page: 100 }, { timeoutMs }), api.getCategories({ timeoutMs }), ordersRequest, notificationsRequest]).then(([shopsResult, categoriesResult, ordersResult, notificationsResult]) => {
       if (!active) return;
       const shops = shopsResult.status === "fulfilled" ? shopsResult.value.items.map((shop, index) => normalizeShop(shop, index)) : fallbackShops;
       const tree = categoriesResult.status === "fulfilled" ? categoriesResult.value : [];

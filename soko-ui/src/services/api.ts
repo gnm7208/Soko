@@ -1,7 +1,13 @@
 import type { DeliveryMethod, PaymentMethod } from "@/soko/data";
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL ?? "/api/v1").replace(/\/$/, "");
-const REQUEST_TIMEOUT_MS = 4_000;
+const REQUEST_TIMEOUT_MS = 8_000;
+// Free-tier hosts (e.g. Render) spin down after inactivity and can take
+// 30-50s to wake on the first request. The app's very first data fetch on
+// load gets this much longer budget so a cold backend doesn't silently look
+// like "no data" and fall back to placeholders — later interactions keep the
+// snappier default above.
+const COLD_START_TIMEOUT_MS = 45_000;
 
 export interface ApiErrorPayload {
   error?: string;
@@ -189,6 +195,7 @@ interface PaginatedResponse<T> {
 
 interface RequestOptions extends RequestInit {
   query?: Record<string, string | number | undefined | null>;
+  timeoutMs?: number;
 }
 
 let accessToken: string | undefined;
@@ -198,7 +205,7 @@ export function setAccessToken(token?: string) {
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { query, headers, body, ...init } = options;
+  const { query, headers, body, timeoutMs, ...init } = options;
   const url = API_BASE_URL.startsWith("http")
     ? new URL(`${API_BASE_URL}${path}`)
     : new URL(`${API_BASE_URL}${path}`, window.location.origin);
@@ -207,7 +214,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   });
 
   const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs ?? REQUEST_TIMEOUT_MS);
   const requestHeaders = new Headers(headers);
   if (body && !requestHeaders.has("Content-Type")) requestHeaders.set("Content-Type", "application/json");
   if (accessToken && !requestHeaders.has("Authorization")) requestHeaders.set("Authorization", `Bearer ${accessToken}`);
@@ -296,9 +303,9 @@ export const api = {
   getListing: (id: string) => request<ApiListing>(`/listings/${id}`),
   createListing: (payload: { title: string; price: number; category_id?: string; condition?: "new" | "used"; stock?: number; description?: string }) => request<ApiListing>("/listings", { method: "POST", body: JSON.stringify(payload) }),
   updateListing: (id: string, payload: Partial<{ title: string; price: number; category_id: string; condition: "new" | "used"; stock: number; description: string }>) => request<ApiListing>(`/listings/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
-  getShops: (query: Record<string, string | number | undefined | null> = {}) => request<PaginatedResponse<ApiShop>>("/shops", { query }),
+  getShops: (query: Record<string, string | number | undefined | null> = {}, options?: { timeoutMs?: number }) => request<PaginatedResponse<ApiShop>>("/shops", { query, timeoutMs: options?.timeoutMs }),
   getShop: (id: string) => request<ApiShop>(`/shops/${id}`),
-  getCategories: () => request<ApiCategory[]>("/categories"),
+  getCategories: (options?: { timeoutMs?: number }) => request<ApiCategory[]>("/categories", { timeoutMs: options?.timeoutMs }),
   toggleFavorite: (listingId: string) => request<{ favorited: boolean }>(`/favorites/${listingId}`, { method: "POST" }),
   getFavorites: (query: Record<string, string | number | undefined | null> = {}) => request<PaginatedResponse<ApiListing>>("/favorites", { query }),
   getOrders: (query: Record<string, string | number | undefined | null> = {}) => request<PaginatedResponse<ApiOrder>>("/orders", { query }),
@@ -334,3 +341,4 @@ export const api = {
 };
 
 export type { PaymentMethod };
+export { COLD_START_TIMEOUT_MS };
