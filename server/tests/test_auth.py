@@ -15,6 +15,59 @@ def test_register(client):
     assert data["profile"]["full_name"] == "Test User"
 
 
+def test_register_retailer_has_no_shop_until_they_create_one(client):
+    # Registering with role="retailer" only sets the role — it does not create
+    # a shop (POST /shops does that, and Shop.owner_id is unique, so we can't
+    # auto-create one at registration without breaking that flow for anyone
+    # who already owns a shop). /shops/mine should clearly say "none yet"
+    # rather than a route elsewhere silently defaulting to someone else's shop.
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "new-retailer@example.com",
+            "password": "password123",
+            "full_name": "New Retailer",
+            "role": "retailer",
+        },
+    )
+    assert response.status_code == 201
+    token = response.get_json()["access_token"]
+
+    shop_response = client.get(
+        "/api/v1/shops/mine", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert shop_response.status_code == 400
+
+    create_response = client.post(
+        "/api/v1/shops",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "New Retailer's Shop", "category": "General"},
+    )
+    assert create_response.status_code == 201
+
+    shop_response = client.get(
+        "/api/v1/shops/mine", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert shop_response.status_code == 200
+    assert shop_response.get_json()["name"] == "New Retailer's Shop"
+
+
+def test_register_buyer_cannot_access_shops_mine(client):
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "new-buyer@example.com",
+            "password": "password123",
+            "full_name": "New Buyer",
+        },
+    )
+    token = response.get_json()["access_token"]
+    shop_response = client.get(
+        "/api/v1/shops/mine", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert shop_response.status_code == 403
+
+
 def test_register_duplicate(client):
     client.post(
         "/api/v1/auth/register",

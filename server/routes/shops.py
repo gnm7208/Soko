@@ -39,6 +39,25 @@ def list_shops():
         return jsonify({"error": "server_error", "message": str(e)}), 500
 
 
+@bp.route("/shops/mine", methods=["GET"])
+@jwt_required()
+@retailer_required
+def get_my_shop():
+    try:
+        profile = get_current_profile()
+        if not profile:
+            raise Forbidden("Profile not found")
+        shop = db.session.query(Shop).filter_by(owner_id=profile.id).first()
+        if not shop:
+            raise NotFound("You don't have a shop yet")
+        schema = ShopSchema()
+        return jsonify(schema.dump(shop)), 200
+    except APIError as e:
+        return jsonify(e.to_dict()), e.status_code
+    except Exception as e:
+        return jsonify({"error": "server_error", "message": str(e)}), 500
+
+
 @bp.route("/shops/<shop_id>", methods=["GET"])
 def get_shop(shop_id):
     try:

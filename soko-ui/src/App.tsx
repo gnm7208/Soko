@@ -93,7 +93,7 @@ export default function App() {
   const content = mode === "admin" ? (
     <AdminDashboard />
   ) : mode === "seller" ? (
-    <SellerDashboard searchQuery={searchQuery} listings={currentListings} shops={currentShops} orders={marketplace.orders} onSwitchToBuyer={showBuyer} onShopUpdated={marketplace.refresh} />
+    <SellerDashboard searchQuery={searchQuery} profile={profile} listings={currentListings} shops={currentShops} orders={marketplace.orders} onSwitchToBuyer={showBuyer} onShopUpdated={marketplace.refresh} />
   ) : (
     <>
       {screen === "browse" && <Browse listings={currentListings} shops={currentShops} categories={marketplace.categories} profile={profile} searchQuery={searchQuery} onSearchChange={setSearchQuery} onOpenListing={openListing} onCheckout={(nextListing) => { setListing(nextListing); navigate("checkout"); }} onChat={(nextListing) => { if (nextListing) setListing(nextListing); navigate("chat"); }} onSell={showSeller} onRequireAuth={requireAuth} onFavoriteToggle={toggleFavorite} />}

@@ -323,6 +323,8 @@ export const api = {
   requestPayout: (amount: number, note?: string) => request<{ id: string; wallet_id: string; amount: number; status: string; note?: string }>("/wallets/payout-request", { ...jsonBody({ amount, note }) }),
   updateProfile: (payload: Partial<{ full_name: string; phone: string }>) => request<ApiProfile>("/auth/me", { method: "PATCH", body: JSON.stringify(payload) }),
   uploadAvatar: (file: File) => { const form = new FormData(); form.append("file", file); return requestMultipart<ApiProfile>("/auth/me/avatar", form); },
+  getMyShop: () => request<ApiShop>("/shops/mine"),
+  createShop: (payload: { name: string; category: string; description?: string; address?: string }) => request<ApiShop>("/shops", { ...jsonBody(payload) }),
   updateShop: (id: string, payload: Partial<{ name: string; description: string; category: string; address: string; lat: number; lng: number; logo_url: string; cover_url: string }>) => request<ApiShop>(`/shops/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   uploadShopImage: (shopId: string, file: File, kind: "logo" | "cover") => { const form = new FormData(); form.append("file", file); form.append("kind", kind); return requestMultipart<ApiShop>(`/shops/${shopId}/images`, form); },
   createDispute: (payload: { order_id: string; reason: string }) => request<ApiDispute>("/disputes", { ...jsonBody(payload) }),
