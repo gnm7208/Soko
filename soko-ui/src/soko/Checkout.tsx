@@ -9,11 +9,12 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 
 import { api, ApiError, type ApiProfile } from "@/services/api";
-import { money, shops, type DeliveryMethod, type Listing, type PaymentMethod } from "./data";
+import { money, shops as fallbackShops, type DeliveryMethod, type Listing, type PaymentMethod, type Shop } from "./data";
 
 interface CheckoutProps {
   listing: Listing;
   profile: ApiProfile | null;
+  shops?: Shop[];
   onBack: () => void;
   onDone: () => void;
   onRequireAuth: () => void;
@@ -31,8 +32,8 @@ function providerFor(payment: PaymentMethod): "stripe" | "flutterwave" | "paysta
   return "cash";
 }
 
-export function Checkout({ listing, profile, onBack, onDone, onRequireAuth }: CheckoutProps) {
-  const shop = shops.find((item) => item.id === listing.shopId) ?? shops[0];
+export function Checkout({ listing, profile, shops = fallbackShops, onBack, onDone, onRequireAuth }: CheckoutProps) {
+  const shop = shops.find((item) => item.id === listing.shopId) ?? fallbackShops[0];
   const [payment, setPayment] = useState<PaymentMethod>("M-Pesa");
   const [delivery, setDelivery] = useState<DeliveryMethod>("delivery");
   const [submitting, setSubmitting] = useState(false);

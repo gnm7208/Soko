@@ -3,10 +3,11 @@ import type { DeliveryMethod, PaymentMethod } from "@/soko/data";
 const API_BASE_URL = (import.meta.env.VITE_API_URL ?? "/api/v1").replace(/\/$/, "");
 const REQUEST_TIMEOUT_MS = 8_000;
 // Free-tier hosts (e.g. Render) spin down after inactivity and can take
-// 30-50s to wake on the first request. The app's very first data fetch on
-// load gets this much longer budget so a cold backend doesn't silently look
-// like "no data" and fall back to placeholders — later interactions keep the
-// snappier default above.
+// 30-50s to wake on the first request — which can happen on the initial page
+// load just as easily as mid-session (e.g. a user browsing for a while, then
+// checking out after the backend has gone back to sleep). Any request that
+// times out at the snappier default gets one retry at this longer budget
+// before it's treated as a real failure.
 const COLD_START_TIMEOUT_MS = 45_000;
 
 export interface ApiErrorPayload {
@@ -204,6 +205,20 @@ export function setAccessToken(token?: string) {
   accessToken = token;
 }
 
+async function fetchWithTimeout(url: URL, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+function isTimeout(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { query, headers, body, timeoutMs, ...init } = options;
   const url = API_BASE_URL.startsWith("http")
@@ -213,8 +228,6 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
   });
 
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), timeoutMs ?? REQUEST_TIMEOUT_MS);
   const requestHeaders = new Headers(headers);
   if (body && !requestHeaders.has("Content-Type")) requestHeaders.set("Content-Type", "application/json");
   if (accessToken && !requestHeaders.has("Authorization")) requestHeaders.set("Authorization", `Bearer ${accessToken}`);
@@ -224,8 +237,17 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     if (csrfToken) requestHeaders.set("X-CSRF-TOKEN", csrfToken);
   }
 
+  const fetchInit: RequestInit = { ...init, body, headers: requestHeaders, credentials: "include" };
+  const firstTimeout = timeoutMs ?? REQUEST_TIMEOUT_MS;
+
   try {
-    const response = await fetch(url, { ...init, body, headers: requestHeaders, credentials: "include", signal: controller.signal });
+    let response: Response;
+    try {
+      response = await fetchWithTimeout(url, fetchInit, firstTimeout);
+    } catch (error) {
+      if (!isTimeout(error) || firstTimeout >= COLD_START_TIMEOUT_MS) throw error;
+      response = await fetchWithTimeout(url, fetchInit, COLD_START_TIMEOUT_MS);
+    }
     const contentType = response.headers.get("content-type") ?? "";
     const payload = contentType.includes("application/json") ? await response.json() : undefined;
     if (!response.ok) {
@@ -235,10 +257,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     return payload as T;
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    if (error instanceof DOMException && error.name === "AbortError") throw new ApiError("The Soko API took too long to respond", 408);
+    if (isTimeout(error)) throw new ApiError("The Soko API took too long to respond", 408);
     throw error;
-  } finally {
-    window.clearTimeout(timer);
   }
 }
 
@@ -251,15 +271,20 @@ async function requestMultipart<T>(path: string, formData: FormData): Promise<T>
     ? new URL(`${API_BASE_URL}${path}`)
     : new URL(`${API_BASE_URL}${path}`, window.location.origin);
 
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   const requestHeaders = new Headers();
   if (accessToken) requestHeaders.set("Authorization", `Bearer ${accessToken}`);
   const csrfToken = readCookie("csrf_access_token");
   if (csrfToken) requestHeaders.set("X-CSRF-TOKEN", csrfToken);
+  const fetchInit: RequestInit = { method: "POST", body: formData, headers: requestHeaders, credentials: "include" };
 
   try {
-    const response = await fetch(url, { method: "POST", body: formData, headers: requestHeaders, credentials: "include", signal: controller.signal });
+    let response: Response;
+    try {
+      response = await fetchWithTimeout(url, fetchInit, REQUEST_TIMEOUT_MS);
+    } catch (error) {
+      if (!isTimeout(error)) throw error;
+      response = await fetchWithTimeout(url, fetchInit, COLD_START_TIMEOUT_MS);
+    }
     const contentType = response.headers.get("content-type") ?? "";
     const payload = contentType.includes("application/json") ? await response.json() : undefined;
     if (!response.ok) {
@@ -269,10 +294,8 @@ async function requestMultipart<T>(path: string, formData: FormData): Promise<T>
     return payload as T;
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    if (error instanceof DOMException && error.name === "AbortError") throw new ApiError("The Soko API took too long to respond", 408);
+    if (isTimeout(error)) throw new ApiError("The Soko API took too long to respond", 408);
     throw error;
-  } finally {
-    window.clearTimeout(timer);
   }
 }
 

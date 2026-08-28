@@ -100,7 +100,7 @@ export default function App() {
       {screen === "listing" && <ListingDetail listing={activeListing} profile={profile} onRequireAuth={requireAuth} onFavoriteToggle={toggleFavorite} onBack={() => navigate("browse")} onChat={() => navigate("chat")} onShop={() => openShop(currentShops.find((item) => item.id === activeListing.shopId) ?? activeShop)} onCheckout={() => navigate("checkout")} onOpenListing={openListing} />}
       {screen === "shop" && <ShopProfile shop={activeShop} listings={currentListings} onBack={() => navigate("browse")} onOpenListing={openListing} onChat={() => navigate("chat")} />}
       {screen === "chat" && <Chat shop={chatShop} listing={activeListing} profile={profile} onBack={() => navigate("listing")} onRequireAuth={requireAuth} />}
-      {screen === "checkout" && <Checkout listing={activeListing} profile={profile} onRequireAuth={requireAuth} onBack={() => navigate("listing")} onDone={() => { marketplace.refresh(); toast.success("Order created — payment status will update from the provider webhook."); navigate("orders"); }} />}
+      {screen === "checkout" && <Checkout listing={activeListing} profile={profile} shops={currentShops} onRequireAuth={requireAuth} onBack={() => navigate("listing")} onDone={() => { marketplace.refresh(); toast.success("Order created — payment status will update from the provider webhook."); navigate("orders"); }} />}
       {screen === "orders" && <Orders searchQuery={searchQuery} orders={marketplace.orders} onBrowse={showBuyer} />}
     </>
   );
