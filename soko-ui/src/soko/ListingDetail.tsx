@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-import { listings, money, shops, type Listing } from "./data";
+import { listings as fallbackListings, money, shops as fallbackShops, type Listing, type Shop } from "./data";
 import { ListingCard } from "./ListingCard";
 import { Stars } from "./Shared";
 
 interface ListingDetailProps {
   listing: Listing;
+  listings?: Listing[];
+  shops?: Shop[];
   onBack: () => void;
   onChat: () => void;
   onShop: () => void;
@@ -23,8 +25,8 @@ interface ListingDetailProps {
   onFavoriteToggle?: (listingId: string, nextValue: boolean) => Promise<void>;
 }
 
-export function ListingDetail({ listing, onBack, onChat, onShop, onCheckout, onOpenListing, profile, onRequireAuth, onFavoriteToggle }: ListingDetailProps) {
-  const shop = shops.find((item) => item.id === listing.shopId) ?? shops[0];
+export function ListingDetail({ listing, listings = fallbackListings, shops = fallbackShops, onBack, onChat, onShop, onCheckout, onOpenListing, profile, onRequireAuth, onFavoriteToggle }: ListingDetailProps) {
+  const shop = shops.find((item) => item.id === listing.shopId) ?? fallbackShops[0];
   const more = listings.filter((item) => item.shopId === shop.id && item.id !== listing.id).slice(0, 4);
   const [isFavorite, setIsFavorite] = useState(false);
 

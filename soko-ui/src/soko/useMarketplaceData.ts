@@ -24,9 +24,17 @@ export function useMarketplaceData(searchQuery = "", isAuthenticated = false): M
   const [data, setData] = useState<MarketplaceData>({ listings: fallbackListings, shops: fallbackShops, categories: fallbackCategoryOptions, orders: fallbackOrders, notifications: [], loading: true, remote: false, listingsRemote: false, refresh: () => undefined });
   const [remoteShops, setRemoteShops] = useState<Shop[]>(fallbackShops);
   const [categoryTree, setCategoryTree] = useState<ReturnType<typeof flattenCategories>>([]);
+  // Listings are normalized against remoteShops/categoryTree, so fetching them
+  // before that first settles would map every listing using an empty category
+  // map and the 3-shop mock fallback (real shop/category ids never match those
+  // mock ids) — every listing would silently collapse onto the same wrong
+  // fallback shop/category instead of its real one. Gate the listings fetch on
+  // shops+categories having settled at least once so it always has real maps.
+  const [shopsReady, setShopsReady] = useState(false);
 
   useEffect(() => {
     let active = true;
+    setShopsReady(false);
     // Only the very first load gets the generous cold-start budget — a free-tier
     // backend asleep on first visit shouldn't silently look like "no data" and
     // fall back to placeholders. Later refreshes (post-checkout, shop-settings
@@ -44,11 +52,13 @@ export function useMarketplaceData(searchQuery = "", isAuthenticated = false): M
       setRemoteShops(shops.length > 0 ? shops : fallbackShops);
       setCategoryTree(flattenCategories(tree));
       setData((current) => ({ ...current, shops: shops.length > 0 ? shops : fallbackShops, categories: tree.length > 0 ? normalizeCategoryOptions(tree) : current.categories, orders: ordersResult.status === "fulfilled" ? orders : fallbackOrders, notifications, loading: false, remote: shopsResult.status === "fulfilled" || categoriesResult.status === "fulfilled" || ordersResult.status === "fulfilled" || notificationsResult.status === "fulfilled" }));
+      setShopsReady(true);
     });
     return () => { active = false; };
   }, [isAuthenticated, refreshToken]);
 
   useEffect(() => {
+    if (!shopsReady) return;
     let active = true;
     const timer = window.setTimeout(() => {
       const query = searchQuery.trim();
@@ -64,7 +74,7 @@ export function useMarketplaceData(searchQuery = "", isAuthenticated = false): M
       });
     }, searchQuery.trim() ? 250 : 0);
     return () => { active = false; window.clearTimeout(timer); };
-  }, [categoryTree, remoteShops, searchQuery]);
+  }, [shopsReady, categoryTree, remoteShops, searchQuery]);
 
   return { ...data, refresh: () => setRefreshToken((value) => value + 1) };
 }
