@@ -153,6 +153,69 @@ def test_get_order_success(client, buyer_token, order_id):
     assert "total" in data
 
 
+def test_order_reports_its_own_listing_title_and_image(
+    client, buyer_token, retailer_token, shop_id, listing_id
+):
+    # Regression: the order list/detail response must reflect the specific
+    # listing that was actually ordered, not some other order's listing —
+    # create two different listings/orders and confirm each order reports
+    # its own title, never the other one's.
+    other_listing_resp = client.post(
+        "/api/v1/listings",
+        headers={"Authorization": f"Bearer {retailer_token}"},
+        json={"title": "Alphabet Learning Blocks", "price": 500},
+    )
+    assert other_listing_resp.status_code == 201
+    other_listing_id = other_listing_resp.get_json()["id"]
+    client.post(
+        f"/api/v1/listings/{other_listing_id}/images",
+        headers={"Authorization": f"Bearer {retailer_token}"},
+        json={"url": "https://example.com/alphabet-blocks.jpg"},
+    )
+
+    first_order = client.post(
+        "/api/v1/orders",
+        headers={"Authorization": f"Bearer {buyer_token}"},
+        json={
+            "shop_id": shop_id,
+            "items": [{"listing_id": listing_id, "qty": 1}],
+            "delivery_method": "pickup",
+            "payment_method": "cash",
+        },
+    )
+    second_order = client.post(
+        "/api/v1/orders",
+        headers={"Authorization": f"Bearer {buyer_token}"},
+        json={
+            "shop_id": shop_id,
+            "items": [{"listing_id": other_listing_id, "qty": 1}],
+            "delivery_method": "pickup",
+            "payment_method": "cash",
+        },
+    )
+    assert first_order.status_code == 201
+    assert second_order.status_code == 201
+
+    first_get = client.get(
+        f"/api/v1/orders/{first_order.get_json()['id']}",
+        headers={"Authorization": f"Bearer {buyer_token}"},
+    )
+    second_get = client.get(
+        f"/api/v1/orders/{second_order.get_json()['id']}",
+        headers={"Authorization": f"Bearer {buyer_token}"},
+    )
+    assert first_get.get_json()["listing_title"] == "Order Product"
+    assert second_get.get_json()["listing_title"] == "Alphabet Learning Blocks"
+    assert second_get.get_json()["listing_image"] == "https://example.com/alphabet-blocks.jpg"
+
+    list_resp = client.get(
+        "/api/v1/orders", headers={"Authorization": f"Bearer {buyer_token}"}
+    )
+    titles_by_id = {item["id"]: item["listing_title"] for item in list_resp.get_json()["items"]}
+    assert titles_by_id[first_order.get_json()["id"]] == "Order Product"
+    assert titles_by_id[second_order.get_json()["id"]] == "Alphabet Learning Blocks"
+
+
 def test_get_order_not_found(client, buyer_token):
     resp = client.get(
         "/api/v1/orders/nonexistent-id", headers={"Authorization": f"Bearer {buyer_token}"}

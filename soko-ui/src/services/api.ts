@@ -86,6 +86,8 @@ export interface ApiOrder {
   delivery_lng?: number | null;
   rider_id?: string | null;
   created_at?: string;
+  listing_title?: string | null;
+  listing_image?: string | null;
 }
 
 export interface ApiMessage {

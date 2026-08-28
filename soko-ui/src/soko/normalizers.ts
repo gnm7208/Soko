@@ -88,7 +88,8 @@ export function normalizeOrder(raw: ApiOrder, shopMap: Map<string, Shop>, index 
   return {
     ...fallback,
     id: raw.id,
-    listingTitle: fallback.listingTitle,
+    listingTitle: raw.listing_title || fallback.listingTitle,
+    image: raw.listing_image || fallback.image,
     shopName: shop?.name ?? fallback.shopName,
     total: raw.total ?? fallback.total,
     currency: displayCurrency(raw.currency),

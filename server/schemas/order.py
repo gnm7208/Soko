@@ -46,3 +46,15 @@ class OrderSchema(Schema):
     delivery_lng = fields.Float(dump_only=True)
     rider_id = fields.Str(dump_only=True)
     created_at = fields.DateTime(dump_only=True)
+    listing_title = fields.Method("get_listing_title", dump_only=True)
+    listing_image = fields.Method("get_listing_image", dump_only=True)
+
+    def get_listing_title(self, obj):
+        first_item = obj.items[0] if obj.items else None
+        return first_item.title_snapshot if first_item else None
+
+    def get_listing_image(self, obj):
+        first_item = obj.items[0] if obj.items else None
+        if not first_item or not first_item.listing or not first_item.listing.images:
+            return None
+        return first_item.listing.images[0].url

@@ -53,3 +53,6 @@ uploads/
 # Excluded from initial push — gh OAuth token lacks 'workflow' scope.
 # Add back with: git add -f .github/workflows/ci.yml
 .github/workflows/ci.yml
+
+# Personal Claude Code permission overrides — not shared with the team.
+.claude/settings.local.json
