@@ -23,7 +23,7 @@ def upload_image(file, folder="listings"):
         raise APIError("Image is too large (max 5MB)", status_code=400)
 
     filename = f"{folder}/{uuid.uuid4()}{ext}"
-    storage_path = os.getenv("STORAGE_PATH", "./uploads")
+    storage_path = os.path.abspath(os.getenv("STORAGE_PATH", "./uploads"))
     os.makedirs(os.path.join(storage_path, folder), exist_ok=True)
     filepath = os.path.join(storage_path, filename)
     file.save(filepath)
@@ -32,7 +32,7 @@ def upload_image(file, folder="listings"):
 
 def delete_image(url):
     if url.startswith("/static/uploads/"):
-        storage_path = os.getenv("STORAGE_PATH", "./uploads")
+        storage_path = os.path.abspath(os.getenv("STORAGE_PATH", "./uploads"))
         filepath = url.replace("/static/uploads/", f"{storage_path}/")
         if os.path.exists(filepath):
             os.remove(filepath)

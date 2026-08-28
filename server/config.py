@@ -41,7 +41,12 @@ class Config:
     PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "")
     PAYSTACK_WEBHOOK_SECRET = os.getenv("PAYSTACK_WEBHOOK_SECRET", "")
 
-    STORAGE_PATH = os.getenv("STORAGE_PATH", "./uploads")
+    # Absolute, because send_from_directory() resolves a relative directory
+    # against the Flask app's root_path (the server/ package dir), while
+    # upload_image() below resolves the same relative path against the
+    # process's cwd (repo root) — a mismatch that silently 404s every
+    # uploaded file. Resolving once to an absolute path makes both agree.
+    STORAGE_PATH = os.path.abspath(os.getenv("STORAGE_PATH", "./uploads"))
     CLOUDINARY_URL = os.getenv("CLOUDINARY_URL", "")
 
     RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")

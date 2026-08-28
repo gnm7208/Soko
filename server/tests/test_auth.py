@@ -1,3 +1,6 @@
+import io
+
+
 def test_register(client):
     response = client.post(
         "/api/v1/auth/register",
@@ -169,3 +172,40 @@ def test_update_me(client):
     )
     assert response.status_code == 200
     assert response.get_json()["full_name"] == "Updated Name"
+
+
+def test_upload_avatar_is_actually_servable(client):
+    client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "avatar@example.com",
+            "password": "password123",
+            "full_name": "Avatar User",
+        },
+    )
+    login_resp = client.post(
+        "/api/v1/auth/login",
+        json={"email": "avatar@example.com", "password": "password123"},
+    )
+    token = login_resp.get_json()["access_token"]
+
+    resp = client.post(
+        "/api/v1/auth/me/avatar",
+        headers={"Authorization": f"Bearer {token}"},
+        data={"file": (io.BytesIO(b"fake-avatar-bytes"), "avatar.png")},
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 200
+    avatar_url = resp.get_json()["avatar_url"]
+    assert avatar_url.startswith("/static/uploads/avatars/")
+
+    # The URL handed back must actually be servable, not just a path string
+    # stored on the profile — a STORAGE_PATH resolution mismatch between the
+    # upload (cwd-relative) and the static route (app-root-relative) would
+    # silently 404 this while the upload response itself still looks fine.
+    served = client.get(avatar_url)
+    assert served.status_code == 200
+    assert served.data == b"fake-avatar-bytes"
+
+    me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me.get_json()["avatar_url"] == avatar_url

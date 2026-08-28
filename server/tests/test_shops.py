@@ -214,6 +214,14 @@ def test_upload_shop_image_success(client):
     refetched = client.get(f"/api/v1/shops/{created['id']}").get_json()
     assert refetched["cover_url"] == data["cover_url"]
 
+    # The URL the API hands back must actually be servable — not just a
+    # string stored in the database (this is what the static upload route
+    # is for; a path mismatch there would 404 every uploaded image while
+    # every other assertion above still passes).
+    served = client.get(data["cover_url"])
+    assert served.status_code == 200
+    assert served.data == b"fake-image-bytes"
+
 
 def test_upload_shop_image_not_owner(client):
     owner_token = get_auth_token(client, "shop-image-owner@example.com")
