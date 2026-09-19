@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.gnm7208.soko",
+      "sha256_cert_fingerprints": ["94:76:CB:BD:D2:6A:8F:1E:10:02:6E:69:4D:D8:E3:CF:98:BB:39:10:12:49:2D:A3:1E:86:FA:6F:50:48:13:AD"]
+    }
+  }
+]
