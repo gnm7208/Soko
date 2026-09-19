@@ -108,3 +108,109 @@ class AuthService:
         db.session.add(shop)
         db.session.commit()
         return shop
+
+    # Orders in these states still have goods or money moving.
+    ACTIVE_ORDER_STATUSES = ("pending", "confirmed", "paid", "preparing", "out_for_delivery")
+
+    @staticmethod
+    def delete_account(profile, password):
+        """Erase a profile and everything only it owns, once nothing is in flight.
+
+        Refused while the person has orders in progress (as buyer, as the shop
+        behind them, or as the rider carrying them) or a wallet balance, so a
+        deletion never strands goods or money. A retailer's shop goes with them —
+        listings, promotions, conversations and finished orders included.
+        Dependent rows are removed explicitly: SQLite (dev/tests) does not
+        enforce ON DELETE CASCADE and the ORM would otherwise NULL columns that
+        are NOT NULL.
+        """
+        from server.models import (
+            Conversation,
+            Delivery,
+            Dispute,
+            Favorite,
+            Notification,
+            Order,
+            Review,
+            Shop,
+            Wallet,
+        )
+
+        if not password or not bcrypt.checkpw(
+            password.encode("utf-8"), profile.password_hash.encode("utf-8")
+        ):
+            # 403, not 401: the session is valid, only the confirmation failed,
+            # and the client signs the user out on any 401.
+            raise APIError("Incorrect password", status_code=403)
+        if profile.role == "admin":
+            raise APIError(
+                "Administrator accounts are removed by another administrator", status_code=403
+            )
+
+        shop = db.session.query(Shop).filter_by(owner_id=profile.id).first()
+        shop_id = shop.id if shop else None
+
+        involved = Order.buyer_id == profile.id
+        if shop_id:
+            involved = involved | (Order.shop_id == shop_id)
+        involved = involved | (Order.rider_id == profile.id)
+        active = (
+            db.session.query(Order)
+            .filter(involved, Order.status.in_(AuthService.ACTIVE_ORDER_STATUSES))
+            .count()
+        )
+        if active:
+            raise APIError(
+                "Finish or cancel your orders in progress before deleting your account",
+                status_code=409,
+            )
+        wallet = db.session.query(Wallet).filter_by(owner_id=profile.id).first()
+        if wallet and wallet.balance > 0:
+            raise APIError(
+                "Withdraw your wallet balance before deleting your account", status_code=409
+            )
+
+        # Finished deliveries this rider carried stay on the buyer's order, unlinked.
+        db.session.query(Delivery).filter(Delivery.rider_id == profile.id).update(
+            {Delivery.rider_id: None}, synchronize_session=False
+        )
+        db.session.query(Order).filter(Order.rider_id == profile.id).update(
+            {Order.rider_id: None}, synchronize_session=False
+        )
+        db.session.query(Dispute).filter(Dispute.resolved_by == profile.id).update(
+            {Dispute.resolved_by: None}, synchronize_session=False
+        )
+
+        # Their own orders, and every order placed with their shop; items,
+        # payment, delivery, review and disputes cascade from each order.
+        own_orders = Order.buyer_id == profile.id
+        if shop_id:
+            own_orders = own_orders | (Order.shop_id == shop_id)
+        for order in db.session.query(Order).filter(own_orders).all():
+            db.session.delete(order)
+        db.session.flush()
+
+        # Chats they started, and every chat with their shop (messages cascade).
+        chats = Conversation.buyer_id == profile.id
+        if shop_id:
+            chats = chats | (Conversation.shop_id == shop_id)
+        for conversation in db.session.query(Conversation).filter(chats).all():
+            db.session.delete(conversation)
+
+        db.session.query(Favorite).filter(Favorite.user_id == profile.id).delete(
+            synchronize_session=False
+        )
+        db.session.query(Notification).filter(Notification.user_id == profile.id).delete(
+            synchronize_session=False
+        )
+        if shop:
+            db.session.query(Review).filter(Review.shop_id == shop_id).delete(
+                synchronize_session=False
+            )
+            db.session.delete(shop)  # listings and promotions cascade
+        if wallet:
+            db.session.delete(wallet)  # transactions cascade
+        db.session.flush()
+
+        db.session.delete(profile)
+        db.session.commit()

@@ -146,6 +146,7 @@ def update_order_status(order_id):
         if profile.role != "admin" and order.shop.owner_id != profile.id:
             raise Forbidden("Not authorized")
         order = OrderStateMachine.advance(order, status)
+        db.session.commit()
         schema = OrderSchema()
         return jsonify(schema.dump(order)), 200
     except APIError as e:
@@ -173,6 +174,7 @@ def cancel_order(order_id):
         ):
             raise Forbidden("Not authorized")
         order = OrderStateMachine.advance(order, "cancelled")
+        db.session.commit()
         schema = OrderSchema()
         return jsonify(schema.dump(order)), 200
     except APIError as e:

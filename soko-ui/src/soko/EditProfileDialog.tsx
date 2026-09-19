@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Camera, Loader2 } from "lucide-react";
+import { Camera, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,22 +15,28 @@ interface EditProfileDialogProps {
   profile: ApiProfile | null;
   onOpenChange: (open: boolean) => void;
   onUpdated: (profile: ApiProfile) => void;
+  /** Called once the server has erased the account; the app should clear local state. */
+  onDeleted: () => void;
 }
 
 function initials(name?: string) {
   return name?.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "?";
 }
 
-export function EditProfileDialog({ open, profile, onOpenChange, onUpdated }: EditProfileDialogProps) {
+export function EditProfileDialog({ open, profile, onOpenChange, onUpdated, onDeleted }: EditProfileDialogProps) {
   const [fullName, setFullName] = useState(profile?.full_name ?? "");
   const [phone, setPhone] = useState(profile?.phone ?? "");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteArmed, setDeleteArmed] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    if (open) { setFullName(profile?.full_name ?? ""); setPhone(profile?.phone ?? ""); setAvatarFile(null); setError(""); }
+    if (open) { setFullName(profile?.full_name ?? ""); setPhone(profile?.phone ?? ""); setAvatarFile(null); setError(""); setDeletePassword(""); setDeleteArmed(false); setDeleteError(""); }
   }, [open, profile]);
 
   useEffect(() => {
@@ -61,6 +67,28 @@ export function EditProfileDialog({ open, profile, onOpenChange, onUpdated }: Ed
     }
   };
 
+  const deleteAccount = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setDeleteError("");
+    if (!deleteArmed) {
+      // The first submit only arms the button, so one stray tap cannot erase a shop.
+      setDeleteArmed(true);
+      return;
+    }
+    setDeleting(true);
+    try {
+      await api.deleteAccount(deletePassword);
+      onOpenChange(false);
+      onDeleted();
+    } catch (requestError) {
+      setDeleteArmed(false);
+      if (requestError instanceof ApiError && requestError.status === 403) setDeleteError("That password is not right.");
+      else setDeleteError(requestError instanceof ApiError ? requestError.message : "Couldn’t delete your account. Check your connection and try again.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-2xl border-border bg-card p-5 sm:max-w-sm">
@@ -77,6 +105,18 @@ export function EditProfileDialog({ open, profile, onOpenChange, onUpdated }: Ed
           <div className="space-y-1.5"><Label htmlFor="edit-phone" className="font-heading text-xs">Phone</Label><Input id="edit-phone" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+254 7xx xxx xxx" /></div>
           {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
           <Button type="submit" className="w-full gap-2 rounded-lg font-heading text-xs" disabled={submitting}>{submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}Save changes</Button>
+        </form>
+        <form className="mt-2 space-y-3 border-t border-border pt-4" onSubmit={deleteAccount} aria-labelledby="delete-account-heading">
+          <p id="delete-account-heading" className="font-heading text-xs font-semibold text-destructive">Delete my account</p>
+          <p className="font-body text-xs text-muted-foreground">
+            Permanently removes your login, chats, favourites and finished orders{profile?.role === "retailer" ? ", and your shop with all its listings" : ""}. It is refused while an order is still in progress or your wallet holds money. This cannot be undone.
+          </p>
+          <div className="space-y-1.5"><Label htmlFor="delete-password" className="font-heading text-xs">Confirm with your password</Label><Input id="delete-password" type="password" autoComplete="current-password" value={deletePassword} onChange={(event) => { setDeletePassword(event.target.value); setDeleteArmed(false); }} required /></div>
+          {deleteError && <p role="alert" className="text-xs text-destructive">{deleteError}</p>}
+          <div className="flex items-center gap-2">
+            <Button type="submit" variant="destructive" className="gap-2 rounded-lg font-heading text-xs" disabled={deleting || !deletePassword}>{deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />}{deleteArmed ? "Yes, delete my account" : "Delete my account"}</Button>
+            {deleteArmed && !deleting && <Button type="button" variant="ghost" className="rounded-lg font-heading text-xs" onClick={() => setDeleteArmed(false)}>Cancel</Button>}
+          </div>
         </form>
       </DialogContent>
     </Dialog>

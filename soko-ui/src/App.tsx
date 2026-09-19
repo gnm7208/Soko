@@ -84,6 +84,14 @@ export default function App() {
     toast.success("You’ve been signed out");
   };
 
+  // The API has already erased the account and dropped the token by the time this runs.
+  const onAccountDeleted = () => {
+    setProfile(null);
+    setMode("buyer");
+    navigate("browse");
+    toast.success("Your account has been deleted");
+  };
+
   const onNavigate = (nextScreen: Screen) => {
     if (nextScreen === "seller") showSeller();
     else if (nextScreen === "browse") showBuyer();
@@ -121,7 +129,7 @@ export default function App() {
         </AnimatePresence>
       </AppShell>
       <AuthDialog open={authOpen} onOpenChange={setAuthOpen} onAuthenticated={authenticated} />
-      <EditProfileDialog open={editProfileOpen} profile={profile} onOpenChange={setEditProfileOpen} onUpdated={setProfile} />
+      <EditProfileDialog open={editProfileOpen} profile={profile} onOpenChange={setEditProfileOpen} onUpdated={setProfile} onDeleted={onAccountDeleted} />
       <Toaster position="bottom-center" closeButton />
     </>
   );

@@ -347,6 +347,12 @@ export const api = {
   getWallet: () => request<ApiWallet>("/wallets/me"),
   requestPayout: (amount: number, note?: string) => request<{ id: string; wallet_id: string; amount: number; status: string; note?: string }>("/wallets/payout-request", { ...jsonBody({ amount, note }) }),
   updateProfile: (payload: Partial<{ full_name: string; phone: string }>) => request<ApiProfile>("/auth/me", { method: "PATCH", body: JSON.stringify(payload) }),
+  /** Erases the account; the server answers 409 while orders or wallet money are in flight. */
+  deleteAccount: async (password: string) => {
+    const result = await request<{ message: string }>("/auth/me", { method: "DELETE", body: JSON.stringify({ password }) });
+    setAccessToken(undefined);
+    return result;
+  },
   uploadAvatar: (file: File) => { const form = new FormData(); form.append("file", file); return requestMultipart<ApiProfile>("/auth/me/avatar", form); },
   getMyShop: () => request<ApiShop>("/shops/mine"),
   createShop: (payload: { name: string; category: string; description?: string; address?: string }) => request<ApiShop>("/shops", { ...jsonBody(payload) }),

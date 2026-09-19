@@ -208,9 +208,7 @@ def test_order_reports_its_own_listing_title_and_image(
     assert second_get.get_json()["listing_title"] == "Alphabet Learning Blocks"
     assert second_get.get_json()["listing_image"] == "https://example.com/alphabet-blocks.jpg"
 
-    list_resp = client.get(
-        "/api/v1/orders", headers={"Authorization": f"Bearer {buyer_token}"}
-    )
+    list_resp = client.get("/api/v1/orders", headers={"Authorization": f"Bearer {buyer_token}"})
     titles_by_id = {item["id"]: item["listing_title"] for item in list_resp.get_json()["items"]}
     assert titles_by_id[first_order.get_json()["id"]] == "Order Product"
     assert titles_by_id[second_order.get_json()["id"]] == "Alphabet Learning Blocks"
@@ -310,3 +308,19 @@ def test_cancel_order_forbidden(client, buyer_token, retailer_token, shop_id, li
 def test_cancel_order_unauthorized(client, order_id):
     resp = client.post(f"/api/v1/orders/{order_id}/cancel")
     assert resp.status_code == 401
+
+
+def test_status_changes_survive_the_request(client, buyer_token, retailer_token, order_id):
+    """Regression: advance() set the status but the routes never committed, so a
+    cancellation or status change was lost as soon as the request ended."""
+    from server.extensions import db
+    from server.models import Order
+
+    resp = client.post(
+        f"/api/v1/orders/{order_id}/cancel", headers={"Authorization": f"Bearer {buyer_token}"}
+    )
+    assert resp.status_code == 200
+
+    with client.application.app_context():
+        db.session.remove()  # a brand-new session, as the next request would get
+        assert db.session.get(Order, order_id).status == "cancelled"

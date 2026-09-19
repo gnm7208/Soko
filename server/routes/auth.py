@@ -49,6 +49,24 @@ def logout():
     return response
 
 
+@bp.route("/auth/me", methods=["DELETE"])
+@jwt_required()
+@limiter.limit("5 per minute")
+def delete_me():
+    """In-app account deletion (app stores require it; people deserve it anyway)."""
+    profile = get_current_profile()
+    if not profile:
+        return jsonify({"error": "not_found", "message": "Profile not found"}), 404
+    try:
+        data = request.get_json(silent=True) or {}
+        AuthService.delete_account(profile, data.get("password") or "")
+        response = make_response(jsonify({"message": "account deleted"}), 200)
+        unset_jwt_cookies(response)
+        return response
+    except APIError as e:
+        return jsonify(e.to_dict()), e.status_code
+
+
 @bp.route("/auth/me", methods=["GET"])
 @jwt_required()
 def get_me():

@@ -81,8 +81,8 @@ def create_app():
             dsn=app.config["SENTRY_DSN"], integrations=[FlaskIntegration()], environment=env
         )
 
-    from server.services.socketio_chat import ChatNamespace
     from server.extensions import socketio
+    from server.services.socketio_chat import ChatNamespace
 
     socketio.on_namespace(ChatNamespace("/chat"))
 

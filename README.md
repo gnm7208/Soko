@@ -50,6 +50,8 @@ flask run
 
 Swagger UI available at `http://localhost:5000/api/docs` when running.
 
+Account deletion is in-app: `DELETE /api/v1/auth/me` with `{"password": "…"}` re-checks the password (403 on mismatch) and is refused with 409 while the person has orders in progress or a wallet balance; otherwise it removes their orders, chats, favourites, notifications, wallet and — for retailers — the shop with its listings, promotions and reviews.
+
 ## Environment
 
 See `.env.example` for all required variables.
